@@ -14,9 +14,77 @@ use yii\widgets\ActiveForm;
 use yii\web\response;
 use app\models\FormAlumnos;
 use app\models\Alumnos;
+use app\models\FormSearch;
+use yii\helpers\Html;
+use yii\data\Pagination;
+use yii\helpers\Url;
+
 
 class SiteController extends Controller
 {
+
+    public function actionDelete(){
+
+        if (Yii::$app->request->post()) {
+            $id_alumno = Html::encode($_POST["id_alumno"]);
+            if ( (int) $id_alumno ) {
+                if (Alumnos::deleteAll("id_alumno=:id_alumno", [":id_alumno" => $id_alumno])) {
+                    echo "El alumno $id_alumno ha sido eliminado con exito, redireccionando...";
+                    echo "<meta http-equiv='refresh' content='3; ".Url::toRoute("site/view")."'>";
+
+                }
+            }
+            else{
+                echo "No se pudo eliminar registro, redireccionando..";
+                echo "<meta http-equiv='refresh' content='3; ".Url::toRoute("site/view")."'>";
+            }
+        }
+        else{
+            return $this->redirect(["site/view"]);
+        }
+    }
+
+    public function actionView(){
+
+        $form = new FormSearch;
+        $search = null;
+        if($form->load(Yii::$app->request->get())){
+            
+            if ($form->validate()) {
+                $search = Html::encode($form->q);
+                $table = Alumnos::find()
+                        ->where(["like", "id_alumno", $search])
+                        ->orWhere(["like", "nombre", $search])
+                        ->orWhere(["like", "apellidos", $search]);
+                $count = clone $table;
+                $pages = new Pagination([
+                        "pageSize" => 5,
+                        "totalCount" => $count->count()
+                    ]);
+                $model = $table
+                        ->offset($pages->offset)
+                        ->limit($pages->limit)
+                        ->all();
+            }
+            else{
+                $form->getErrors();
+            }
+        }
+        else{
+            $table = Alumnos::find();
+            $count = clone $table;
+            $pages = new Pagination([
+                    "pageSize" => 5,
+                    "totalCount" => $count->count(),
+                ]);
+            $model = $table
+                    ->offset($pages->offset)
+                    ->limit($pages->limit)
+                    ->all();
+        }
+        return $this->render("view", ["model" => $model, "form" => $form, "search" => $search, "pages" => $pages]); 
+        
+    }
 
     public function actionCreate(){
         $model = new FormAlumnos;
